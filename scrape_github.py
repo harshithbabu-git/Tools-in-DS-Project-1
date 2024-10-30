@@ -2,7 +2,7 @@ import requests
 import csv
 
 
-token = "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"  
+token = "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"  
 
 city = "Basel" 
 followers = 10
