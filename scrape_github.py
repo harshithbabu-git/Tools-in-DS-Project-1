@@ -1,39 +1,54 @@
 import requests
 import csv
 
-
-token = "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"  
+token = "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"
 
 city = "Basel" 
-followers = 10
+followers = 10 
 
 url = f"https://api.github.com/search/users?q=location:{city}+followers:>{followers}"
 headers = {"Authorization": f"token {token}"}
-response = requests.get(url, headers=headers)
 
-if response.status_code == 200:
-    users_data = response.json()
-else:
-    print("Error fetching data:", response.status_code)
+all_users = []
+page = 1
+per_page = 100  # Max results per page is 100
+
+while True:
+    paginated_url = f"{url}&page={page}&per_page={per_page}"
+    response = requests.get(paginated_url, headers=headers)
+
+    if response.status_code == 200:
+        users_data = response.json()
+        all_users.extend(users_data['items'])
+        # Break the loop if there are no more users
+        if len(users_data['items']) < per_page:
+            break
+        page += 1  # Move to the next page
+    else:
+        print("Error fetching data:", response.status_code)
+        break
+
+print(f"Total users fetched: {len(all_users)}")
 
 with open("users.csv", mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["login", "name", "company", "location", "email", "hireable", "bio", "public_repos", "followers", "following", "created_at"])
     
-    for user in users_data['items']:
+    for user in all_users:
         # Get detailed user information
         user_info = requests.get(user['url'], headers=headers).json()
         
-        # Clean up the company name
-        company = user_info['company'].strip().lstrip('@').upper() if user_info['company'] else ""
-        
+        # Clean up the company name, defaulting to an empty string if None
+        company = user_info.get('company')
+        company = company.strip().lstrip('@').upper() if company else ""
+
         # Write to CSV
         writer.writerow([
             user_info['login'],
             user_info['name'],
             company,
             user_info['location'],
-            user_info['email'] if 'email' in user_info else "",
+            user_info.get('email', ""),
             user_info['hireable'],
             user_info['bio'],
             user_info['public_repos'],
@@ -46,7 +61,7 @@ with open("repositories.csv", mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["login", "full_name", "created_at", "stargazers_count", "watchers_count", "language", "has_projects", "has_wiki", "license_name"])
     
-    for user in users_data['items']:
+    for user in all_users:
         repos_url = user['repos_url']
         repos_response = requests.get(repos_url, headers=headers)
         
